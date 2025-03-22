@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chronicles of Bebanburg</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    /* Basic full-page style */
+    html, body {
+      margin: 0; 
+      padding: 0;
+      height: 100%; 
+      width: 100%;
+      overflow: hidden; /* no scrollbars */
+      font-family: sans-serif;
+      color: white;
+      background: black; /* fallback background */
+    }
+
+    #screen-wrapper {
+      height: 100%; 
+      width: 100%;
+      background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)),
+                  url('https://img.itch.zone/aW1nLzkxNTgxNTcuZ2lm/original/R6rQsq.gif') 
+                  no-repeat center center;
+      background-size: cover;
+      position: relative;
+    }
+
+    /* The black overlay that fades out at the start */
+    #black-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; 
+      height: 100%;
+      background: black;
+      z-index: 20;
+      animation: fadeOutBlack 2.5s ease-out forwards;
+      pointer-events: none; /* do not block clicks */
+    }
+    @keyframes fadeOutBlack {
+      0%   { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* The main container for the center menu text */
+    .center-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      position: relative;
+      z-index: 1;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+      opacity: 0; /* We'll fade it in with an animation below */
+      animation: fadeInMenu 2s ease-in forwards;
+      animation-delay: 2.6s; /* after black overlay starts fading */
+    }
+    @keyframes fadeInMenu {
+      to { opacity: 1; }
+    }
+
+    .title {
+      font-size: 3em;
+      margin-bottom: 40px;
+    }
+
+    /* The main vertical menu (Play, Settings, Map, Quit) */
+    .menu {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 40px;
+    }
+    .menu button {
+      padding: 10px 20px;
+      font-size: 1em;
+      background: #333;
+      color: white;
+      border: 1px solid #555;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+    .menu button:hover {
+      background: #555;
+    }
+
+    /* Fade-out animation used after user picks a mode or starts loading */
+    .fade-out {
+      animation: fadeOut 3s forwards;
+    }
+    @keyframes fadeOut {
+      0%   { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* The loader screen that appears after user picks a mode, etc. */
+    .loader-screen {
+      display: none;
+      position: absolute;
+      top: 0; 
+      left: 0;
+      height: 100%; 
+      width: 100%;
+      background: black;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      z-index: 10;
+    }
+    .logo {
+      font-size: 2.5em;
+      margin-bottom: 30px;
+    }
+    .loader {
+      position: relative;
+      width: 60px;
+      height: 60px;
+    }
+    .dot {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: white;
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%,-50%);
+    }
+    .dot:nth-child(1) {
+      animation: orbit 1.5s linear infinite;
+      transform-origin: 30px 0;
+    }
+    .dot:nth-child(2) {
+      animation: orbit 2s linear infinite;
+      transform-origin: 30px 0;
+    }
+    .dot:nth-child(3) {
+      animation: orbit 2.5s linear infinite;
+      transform-origin: 30px 0;
+    }
+    @keyframes orbit {
+      from { transform: rotate(0deg) translateX(30px); }
+      to   { transform: rotate(360deg) translateX(30px); }
+    }
+
+    /* Mode selection menu (Solo vs AI, etc.) hidden by default */
+    .mode-select {
+      margin-top: 20px;
+      display: none; /* hidden initially */
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+
+    /* For the "action-btn" style used in TurnBasedBattle, etc. */
+    .actions {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 20px;
+    }
+    .action-btn {
+      background-color: #7a7a7a;
+      color: #fff;
+      padding: 12px 22px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.3s;
+      margin: 0 5px;
+      border: none;
+    }
+    .action-btn:hover {
+      background-color: #999;
+    }
+
+    /* Race selection sub-menu */
+    .race-select {
+      display: none;
+      margin-top: 20px;
+      flex-direction: column;
+      gap: 8px;
+      align-items: center;
+    }
+    .race-options {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* Overlays for Map/Settings if you want them in an iFrame from main menu */
+    .iframe-overlay {
+      display: none;
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; 
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      /* We'll fade out the overlay with a short animation */
+    }
+    .iframe-overlay iframe {
+      width: 80%; 
+      height: 80%;
+      border: 2px solid #fff;
+      border-radius: 6px;
+      background: #000;
+    }
+
+    /* A short fade-out animation for closing submenus */
+    .fade-out-submenu {
+      animation: fadeOutSubmenu 0.6s forwards;
+    }
+    @keyframes fadeOutSubmenu {
+      to { opacity: 0; }
+    }
+
+    .iframe-close-btn {
+      position: absolute;
+      top: 5%; 
+      right: 5%;
+      background: #aa3333; 
+      color: #fff;
+      padding: 8px 16px; 
+      border: none;
+      border-radius: 6px; 
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .iframe-close-btn:hover {
+      background: #cc4444;
+    }
+  </style>
+</head>
+<body>
+  <div id="screen-wrapper">
+    <div id="black-overlay"></div>
+
+    <div class="center-screen" id="title-screen">
+      <div class="title">Chronicles of Bebanburg</div>
+
+      <!-- Main Menu -->
+      <div class="menu" id="mainMenu">
+        <button onclick="openModeSelect()">Play Game</button>
+        <button onclick="openSettingsIframe()">Settings</button>
+        <button onclick="openMapIframe()">Map</button>
+        <button onclick="quitGame()">Quit</button>
+      </div>
+
+      <!-- Mode Selection Sub-menu -->
+      <div class="mode-select" id="modeSelect">
+        <h2>Select Game Mode:</h2>
+        <div class="actions">
+          <button class="action-btn" onclick="chooseMode('solo')">Solo vs AI</button>
+          <button class="action-btn" onclick="chooseMode('coop')">Couch Co-op (2P vs AI)</button>
+          <button class="action-btn" onclick="chooseMode('online')">Multiplayer (Beta)</button>
+        </div>
+        <div class="actions">
+          <button class="action-btn" onclick="closeModeSelect()">Back</button>
+        </div>
+      </div>
+
+      <!-- Race Selection Sub-menu -->
+      <div class="race-select" id="raceSelect">
+        <h2>Choose Your Race</h2>
+        <div class="race-options">
+          <button class="action-btn" onclick="confirmRace('dragonkin')">🐉 Draconian</button>
+          <button class="action-btn" onclick="confirmRace('elf')">🏹 Elf</button>
+          <button class="action-btn" onclick="confirmRace('orc')">🪓 Orc</button>
+          <button class="action-btn" onclick="confirmRace('human')">🛡️ Ascended Human</button>
+          <button class="action-btn" onclick="confirmRace('Mage')">🛡️ Mage</button>
+        </div>
+        <div class="actions">
+          <button class="action-btn" onclick="closeRaceSelect()">Back</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loader screen after selecting mode+race -->
+    <div class="loader-screen" id="loader">
+      <div class="logo">Chronicles of Bebanburg</div>
+      <div class="loader">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+    </div>
+
+    <!-- Iframe overlay for Settings -->
+    <div class="iframe-overlay" id="settingsOverlay">
+      <button class="iframe-close-btn" onclick="closeSettingsIframe()">Close</button>
+      <iframe id="settingsIframe" src="Settings.html"></iframe>
+    </div>
+
+    <!-- Iframe overlay for Map -->
+    <div class="iframe-overlay" id="mapOverlay">
+      <button class="iframe-close-btn" onclick="closeMapIframe()">Close</button>
+      <iframe id="mapIframe" src="../Components/map.html"></iframe>
+    </div>
+  </div>
+
+  <script>
+    let selectedGameMode = 'solo';
+    let selectedRace     = null;
+
+    // Main menu => "Play Game" => show modeSelect
+    function openModeSelect() {
+      document.getElementById('mainMenu').style.display = 'none';
+      document.getElementById('modeSelect').style.display = 'flex';
+    }
+    function closeModeSelect() {
+      document.getElementById('modeSelect').style.display = 'none';
+      document.getElementById('mainMenu').style.display = 'flex';
+    }
+
+    // After picking a mode, go to raceSelect
+    function chooseMode(mode) {
+      selectedGameMode = mode;
+      localStorage.setItem('topdownGameMode', mode);
+      document.getElementById('modeSelect').style.display = 'none';
+      document.getElementById('raceSelect').style.display = 'flex';
+    }
+
+    // Race selection => store it
+    function confirmRace(raceKey) {
+      selectedRace = raceKey;
+      localStorage.setItem('playerRace', raceKey);
+      startLoading();
+    }
+    function closeRaceSelect() {
+      document.getElementById('raceSelect').style.display = 'none';
+      document.getElementById('modeSelect').style.display = 'flex';
+    }
+
+    // Show the loader screen, fade out main menu
+    function startLoading() {
+      const titleScreen = document.getElementById('title-screen');
+      const loader      = document.getElementById('loader');
+
+      titleScreen.classList.add('fade-out');
+      setTimeout(() => {
+        titleScreen.style.display = 'none';
+        loader.style.display = 'flex';
+        loader.classList.add('fade-in');
+
+        setTimeout(() => {
+          loader.classList.remove('fade-in');
+          loader.classList.add('fade-out');
+          setTimeout(() => {
+            window.location.href = '../Modules/TopDownRpgBaseLevel.html';
+          }, 3000);
+        }, 10000);
+
+      }, 3000);
+    }
+
+    // Quit attempts to close tab/window
+    function quitGame() {
+      window.close();
+    }
+
+    // Open/Close Settings in an iframe overlay
+    function openSettingsIframe() {
+      const overlay = document.getElementById('settingsOverlay');
+      overlay.style.display = 'flex';
+      overlay.style.opacity = '1'; // ensure it's fully visible
+    }
+    function closeSettingsIframe() {
+      const overlay = document.getElementById('settingsOverlay');
+      // add a short fade-out
+      overlay.classList.add('fade-out-submenu');
+      // after animation ends, hide & remove the class
+      setTimeout(() => {
+        overlay.style.display = 'none';
+        overlay.classList.remove('fade-out-submenu');
+      }, 600);
+    }
+
+    // Open/Close Map in an iframe overlay
+    function openMapIframe() {
+      const overlay = document.getElementById('mapOverlay');
+      overlay.style.display = 'flex';
+      overlay.style.opacity = '1';
+    }
+    function closeMapIframe() {
+      const overlay = document.getElementById('mapOverlay');
+      overlay.classList.add('fade-out-submenu');
+      setTimeout(() => {
+        overlay.style.display = 'none';
+        overlay.classList.remove('fade-out-submenu');
+      }, 600);
+    }
+  </script>
+</body>
+</html>

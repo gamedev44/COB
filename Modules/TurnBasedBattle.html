@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Chronicles of Bebanburg - Turn-Based Battle</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #2a2a2a;
+      font-family: 'Montserrat', sans-serif;
+      color: #fff;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+      position: relative;
+    }
+    .battle-container {
+      background: linear-gradient(135deg, #1a1a1a, #444444);
+      padding: 20px;
+      border-radius: 15px;
+      width: 1000px;
+      text-align: center;
+      position: relative;
+    }
+    .character-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 30px;
+    }
+    .character {
+      background-color: #2c2c2c;
+      border-radius: 8px;
+      padding: 10px;
+      width: 22%;
+      transition: width 0.4s ease;
+    }
+    .character img {
+      width: 100%;
+      max-height: 140px;
+      border-radius: 5px;
+      object-fit: contain;
+    }
+    .character-stats {
+      margin-top: 10px;
+    }
+    .actions {
+      display: flex;
+      justify-content: space-around;
+      margin-top: 20px;
+    }
+    .action-btn {
+      background-color: #7a7a7a;
+      color: #fff;
+      padding: 12px 22px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.3s;
+      margin: 0 5px;
+      border: none;
+    }
+    .action-btn:hover {
+      background-color: #999;
+    }
+    .message-box {
+      margin-top: 20px;
+      background-color: #1a1a1a;
+      padding: 12px;
+      border-radius: 8px;
+      color: #bbb;
+      min-height: 60px;
+    }
+    .overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background-color: rgba(0, 0, 0, 0.6);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    .overlay-content {
+      background: #2c2c2c;
+      border-radius: 10px;
+      padding: 20px;
+      width: 400px;
+      max-height: 80vh;
+      overflow-y: auto;
+      text-align: left;
+    }
+    .overlay-content h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+    .attack-item-list button {
+      width: 100%;
+      margin: 4px 0;
+      background-color: #555;
+      border: none;
+      padding: 8px;
+      border-radius: 6px;
+      color: #fff;
+      cursor: pointer;
+      text-align: left;
+    }
+    .attack-item-list button:hover {
+      background-color: #777;
+    }
+    .close-btn {
+      background-color: #aa3333;
+      margin-top: 10px;
+      text-align: center;
+      width: 100%;
+      border: none;
+      padding: 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      color: #fff;
+    }
+    .close-btn:hover {
+      background-color: #cc4444;
+    }
+    .pause-overlay {
+      display: none;
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.7);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+    .pause-menu {
+      background: #333;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .pause-menu button {
+      background: #444;
+      color: #fff;
+      padding: 10px 20px;
+      margin: 8px;
+      border: none;
+      cursor: pointer;
+    }
+    .pause-menu button:hover {
+      background: #666;
+    }
+    .fade-out {
+      animation: fadeOut 1s forwards;
+    }
+    @keyframes fadeOut {
+      to { opacity: 0; }
+    }
+    .death-overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(0,0,0,0.8);
+      z-index: 10000;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+    }
+    .death-content {
+      background: #333;
+      padding: 20px;
+      border-radius: 8px;
+      width: 320px;
+    }
+    .death-content h1 {
+      margin-top: 0;
+      font-size: 28px;
+    }
+    .death-content button {
+      background: #444;
+      color: #fff;
+      padding: 10px 20px;
+      margin: 8px;
+      border: none;
+      cursor: pointer;
+    }
+    .death-content button:hover {
+      background: #666;
+    }
+  </style>
+</head>
+<body>
+  <!-- Pause Overlay -->
+  <div class="pause-overlay" id="pauseOverlay">
+    <div class="pause-menu">
+      <h2>Game Paused</h2>
+      <button onclick="resumeBattle()">Resume</button>
+      <button onclick="openSettings()">Settings</button>
+      <button onclick="openMap()">Map</button>
+      <button onclick="quitToMenu()">Quit to Main Menu</button>
+    </div>
+  </div>
+
+  <!-- Main Battle Container -->
+  <div class="battle-container" id="battleContainer">
+    <!-- Player(s) + Enemy(ies) -->
+    <div class="character-row">
+      <div class="character" id="p1Container">
+        <img id="player1Img" src="" alt="Player1">
+        <h3 id="player1Name">Player 1</h3>
+        <div class="character-stats">
+          HP: <span id="player1HP">100</span>/<span id="player1MaxHP">100</span><br>
+          Lvl: <span id="player1Level">1</span> | XP: <span id="player1XP">0</span><br>
+          Gold: <span id="player1Gold">0</span>
+        </div>
+      </div>
+
+      <div class="character" id="p2Container" style="display:none;">
+        <img id="player2Img" src="" alt="Player2">
+        <h3 id="player2Name">Player 2</h3>
+        <div class="character-stats">
+          HP: <span id="player2HP">100</span>/<span id="player2MaxHP">100</span><br>
+          Lvl: <span id="player2Level">1</span> | XP: <span id="player2XP">0</span><br>
+          Gold: <span id="player2Gold">0</span>
+        </div>
+      </div>
+
+      <div class="character" id="enemy1Container">
+        <img id="enemy1Img" src="" alt="Enemy1">
+        <h3 id="enemy1Name">Enemy 1</h3>
+        <div class="character-stats">
+          HP: <span id="enemy1HP">100</span>/100
+        </div>
+      </div>
+
+      <div class="character" id="enemy2Container">
+        <img id="enemy2Img" src="" alt="Enemy2">
+        <h3 id="enemy2Name">Enemy 2</h3>
+        <div class="character-stats">
+          HP: <span id="enemy2HP">100</span>/100
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="actions" id="playerActions">
+      <button class="action-btn" onclick="openAttackMenu()">Attacks</button>
+      <button class="action-btn" onclick="openItemMenu()">Use Item</button>
+      <button class="action-btn" onclick="openShop()">Shop</button>
+      <button class="action-btn" onclick="pauseBattle()">Pause</button>
+    </div>
+
+    <!-- Message Box -->
+    <div class="message-box" id="messageBox">
+      <p>Loading battle...</p>
+    </div>
+  </div>
+
+  <!-- Attack Menu Overlay -->
+  <div class="overlay" id="attackOverlay">
+    <div class="overlay-content">
+      <h3>Choose an Attack</h3>
+      <div class="attack-item-list" id="attackList"></div>
+      <button class="close-btn" onclick="closeAttackMenu()">Close</button>
+    </div>
+  </div>
+
+  <!-- Item Menu Overlay -->
+  <div class="overlay" id="itemOverlay">
+    <div class="overlay-content">
+      <h3>Your Items</h3>
+      <div class="attack-item-list" id="itemList"></div>
+      <button class="close-btn" onclick="closeItemMenu()">Close</button>
+    </div>
+  </div>
+
+  <!-- Target Selection Overlay -->
+  <div class="overlay" id="targetOverlay">
+    <div class="overlay-content">
+      <h3>Select Target</h3>
+      <div class="attack-item-list" id="targetList"></div>
+      <button class="close-btn" onclick="closeTargetMenu()">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Shop Overlay -->
+  <div class="overlay" id="shopOverlay">
+    <div class="overlay-content">
+      <h3>Item Shop</h3>
+      <div class="attack-item-list" id="shopList"></div>
+      <button class="close-btn" onclick="closeShop()">Close</button>
+    </div>
+  </div>
+
+  <!-- Death Overlay -->
+  <div class="death-overlay" id="deathOverlay">
+    <div class="death-content">
+      <h1>You Have Died</h1>
+      <p>All players reached 0 HP.</p>
+      <button onclick="continueAfterDeath()">Continue</button>
+      <button onclick="revivePlayer()">Revive (50 gold)</button>
+    </div>
+  </div>
+
+  <script>
+    // Asset mapping for player types (pulled from mainmenu selection)
+    const PLAYER_ASSETS = {
+      human: {
+        defaultImg: "https://i.ibb.co/Ndj0hV3d/human.png",
+        attackGif: "https://i.ibb.co/ScdKM9x/human-slash.gif",
+        attackSound: "https://example.com/sounds/human_attack.mp3",
+        hurtSound: "https://example.com/sounds/human_hurt.mp3"
+      },
+      orc: {
+        defaultImg: "https://i.ibb.co/39Qvb1HF/orc.png",
+        attackGif: "https://i.ibb.co/G2yNPc9/orc-slam.gif",
+        attackSound: "https://example.com/sounds/orc_attack.mp3",
+        hurtSound: "https://example.com/sounds/orc_hurt.mp3"
+      },
+      elf: {
+        defaultImg: "https://example.com/images/elf.png",
+        attackGif: "https://example.com/images/elf_attack.gif",
+        attackSound: "https://example.com/sounds/elf_attack.mp3",
+        hurtSound: "https://example.com/sounds/elf_hurt.mp3"
+      },
+      dragonkin: {
+        defaultImg: "https://example.com/images/dragonkin.png",
+        attackGif: "https://example.com/images/dragonkin_attack.gif",
+        attackSound: "https://example.com/sounds/dragonkin_attack.mp3",
+        hurtSound: "https://example.com/sounds/dragonkin_hurt.mp3"
+      },
+      Mage: {
+        defaultImg: "https://example.com/images/mage.png",
+        attackGif: "https://example.com/images/mage_attack.gif",
+        attackSound: "https://example.com/sounds/mage_attack.mp3",
+        hurtSound: "https://example.com/sounds/mage_hurt.mp3"
+      }
+    };
+
+    // Retrieve player race(s) from storage – these must be set via the menu
+    let playerRace = localStorage.getItem('playerRace');
+    let playerRace2 = localStorage.getItem('playerRace2');
+
+    if (!playerRace) {
+      console.error("Player Race for Player 1 is not defined in localStorage.");
+    }
+
+    let isPaused = false;
+    let gameMode = "solo";
+    let players = [null, null];
+    let enemies = [];
+    let turnOrder = [];
+    let currentTurnIndex = 0;
+    let messageBox = document.getElementById("messageBox");
+    let messageDelay = 3000;
+    let saveDataKey = "chroniclesSaveData";
+
+    const playerHurtGif = "https://i.ibb.co/y0qB3g2/hurt-player.gif";
+    const enemyHurtGif  = "https://i.ibb.co/xJqzq7Z/hurt-enemy.gif";
+
+    const ENEMY_POOL = [
+      { name: "Thrawl", hp: 100, maxHP: 100, img: "https://i.ibb.co/zPnXRFr/thrawl.png" },
+      { name: "Raider", hp: 100, maxHP: 100, img: "https://i.ibb.co/pydJQ0f/raider.png" },
+      { name: "Feral Wolf", hp: 80, maxHP: 80, img: "https://i.ibb.co/fF36fx5/wolf.png" },
+      { name: "Goblin Scout", hp: 70, maxHP: 70, img: "https://i.ibb.co/mcgRdTW/goblin.png" },
+      { name: "Bandit", hp: 90, maxHP: 90, img: "https://i.ibb.co/pJBqJBD/bandit.png" },
+      { name: "Dark Mage", hp: 120, maxHP: 120, img: "https://i.ibb.co/BfD1F81/darkmage.png" },
+      { name: "Skeleton Warrior", hp: 110, maxHP: 110, img: "https://i.ibb.co/9pzs9zt/skelwarrior.png" },
+      { name: "Vampire Thrall", hp: 130, maxHP: 130, img: "https://i.ibb.co/bQzqJ8z/vampire.png" },
+      { name: "Lizardman", hp: 150, maxHP: 150, img: "https://i.ibb.co/ww84gKf/lizardman.png" },
+      { name: "Dread Knight", hp: 200, maxHP: 200, img: "https://i.ibb.co/6tSPtTz/dreadknight.png" }
+    ];
+
+    const ALL_ATTACKS = [
+      { name: "Punch", emoji: "👊", baseDamage: 5, levelRequired: 1, sound: "https://example.com/sounds/punch.mp3" },
+      { name: "Kick", emoji: "🦵", baseDamage: 8, levelRequired: 1, sound: "https://example.com/sounds/kick.mp3" },
+      { name: "Slash", emoji: "🗡️", baseDamage: 12, levelRequired: 1 },
+      { name: "Basic Heavy Strike", emoji: "🔨", baseDamage: 15, levelRequired: 2 },
+      { name: "Downward Slash", emoji: "⚔️", baseDamage: 18, levelRequired: 4 },
+      { name: "Lance Throw", emoji: "🏹", baseDamage: 22, levelRequired: 5 },
+      { name: "Bow Strike", emoji: "🏹", baseDamage: 26, levelRequired: 6 },
+      { name: "Mace Smash", emoji: "🔨", baseDamage: 30, levelRequired: 7 },
+      { name: "Spear Thrust", emoji: "🏹", baseDamage: 35, levelRequired: 8 },
+      { name: "Battle Axe Swing", emoji: "🪓", baseDamage: 40, levelRequired: 9 },
+      { name: "Longsword Strike", emoji: "⚔️", baseDamage: 45, levelRequired: 10 },
+      { name: "Greatsword Cleave", emoji: "🛡️", baseDamage: 50, levelRequired: 12 },
+      { name: "Warhammer Slam", emoji: "⚒️", baseDamage: 55, levelRequired: 14 },
+      { name: "Lance Charge", emoji: "🏇", baseDamage: 60, levelRequired: 16 },
+      { name: "Spinning Blade", emoji: "💫", baseDamage: 70, levelRequired: 18 },
+      { name: "Shield Bash", emoji: "🛡️", baseDamage: 80, levelRequired: 20 },
+      { name: "Colossal Slam", emoji: "🗿", baseDamage: 90, levelRequired: 25 },
+      { name: "Titan's Wrath", emoji: "🌋", baseDamage: 100, levelRequired: 30 },
+      { name: "Fireball", emoji: "🔥", baseDamage: 110, levelRequired: 50 },
+      { name: "Lightning Strike", emoji: "⚡", baseDamage: 120, levelRequired: 1 },
+      { name: "Earthquake", emoji: "🌍", baseDamage: 130, levelRequired: 60 },
+      { name: "Shadow Claw", emoji: "🐾", baseDamage: 145, levelRequired: 70 },
+      { name: "Blizzard", emoji: "❄️", baseDamage: 160, levelRequired: 80 },
+      { name: "Dragon Fury", emoji: "🐉", baseDamage: 180, levelRequired: 90 },
+      { name: "Meteor Crash", emoji: "☄️", baseDamage: 200, levelRequired: 100 },
+      { name: "Celestial Spear", emoji: "🌠", baseDamage: 220, levelRequired: 101 },
+      { name: "Void Implosion", emoji: "🕳️", baseDamage: 250, levelRequired: 103 },
+      { name: "Phantom Requiem", emoji: "👁️", baseDamage: 280, levelRequired: 105 },
+      { name: "Godslayer Slash", emoji: "⚔️", baseDamage: 320, levelRequired: 107 },
+      { name: "Apocalypse Burst", emoji: "☢️", baseDamage: 400, levelRequired: 110 }
+    ];
+
+    const ALL_ITEMS = [
+      { name: "Health Potion", emoji: "🧪", effect: "heal", value: 20, max_quantity: 10, levelRequired: 0 },
+      { name: "Strength Elixir", emoji: "💪", effect: "strength", value: 5, max_quantity: 5, levelRequired: 0 },
+      { name: "Greater Health Potion", emoji: "🩸", effect: "heal", value: 50, max_quantity: 8, levelRequired: 5 },
+      { name: "Warrior's Tonic", emoji: "🛠️", effect: "strength", value: 15, max_quantity: 5, levelRequired: 10 },
+      { name: "Elixir of Eternity", emoji: "🍷", effect: "heal", value: 200, max_quantity: 1, levelRequired: 101 },
+      { name: "Mega Stimulant", emoji: "⚗️", effect: "strength", value: 25, max_quantity: 2, levelRequired: 30 },
+      { name: "Small Ether", emoji: "💧", effect: "heal", value: 10, max_quantity: 10, levelRequired: 0 }
+    ];
+
+    const SHOP_ITEMS = [
+      { name: "Health Potion", emoji: "🧪", effect: "heal", value: 20, price: 10 },
+      { name: "Greater Health Potion", emoji: "🩸", effect: "heal", value: 50, price: 25 },
+      { name: "Strength Elixir", emoji: "💪", effect: "strength", value: 5, price: 15 },
+      { name: "Mega Stimulant", emoji: "⚗️", effect: "strength", value: 25, price: 50 }
+    ];
+
+    window.addEventListener('load', () => {
+      let mode = localStorage.getItem('topdownGameMode');
+      gameMode = mode ? mode : 'solo';
+
+      // Retrieve player races directly from storage (set via the menu/top–down module)
+      let playerRace1 = localStorage.getItem('playerRace');
+      let playerRace2 = localStorage.getItem('playerRace2');
+
+      if (!playerRace1) {
+        console.error("Player Race for Player 1 is not defined in localStorage.");
+      }
+
+      let existingData = loadGameData();
+      if (existingData && existingData.players) {
+        // Reconstruct players from saved data using the stored race values
+        players = reconstructPlayers(existingData.players);
+      } else {
+        // Create Player 1 using the stored race value (no default fallback)
+        players[0] = {
+          name: localStorage.getItem('playerName') || playerRace1,
+          race: playerRace1,
+          level: 1,
+          xp: 0,
+          maxHP: 100,
+          currentHP: 100,
+          defaultImg: PLAYER_ASSETS[playerRace1].defaultImg,
+          attackGif: PLAYER_ASSETS[playerRace1].attackGif,
+          attackSound: PLAYER_ASSETS[playerRace1].attackSound,
+          hurtSound: PLAYER_ASSETS[playerRace1].hurtSound,
+          tempStrength: 0,
+          buffTurnsRemaining: 0,
+          gold: 0,
+          wins: 0,
+          inventory: [
+            { name: "Health Potion", emoji: "🧪", effect: "heal", value: 20 },
+            { name: "Small Ether", emoji: "💧", effect: "heal", value: 10 }
+          ]
+        };
+
+        // For coop/online mode, create Player 2 using its stored race.
+        if (gameMode === "coop" || gameMode === "online") {
+          if (!playerRace2) {
+            console.error("Player Race for Player 2 is not defined in localStorage.");
+          }
+          players[1] = {
+            name: localStorage.getItem('playerName2') || playerRace2,
+            race: playerRace2,
+            level: 1,
+            xp: 0,
+            maxHP: 110,
+            currentHP: 110,
+            defaultImg: PLAYER_ASSETS[playerRace2].defaultImg,
+            attackGif: PLAYER_ASSETS[playerRace2].attackGif,
+            attackSound: PLAYER_ASSETS[playerRace2].attackSound,
+            hurtSound: PLAYER_ASSETS[playerRace2].hurtSound,
+            tempStrength: 0,
+            buffTurnsRemaining: 0,
+            gold: 0,
+            wins: 0,
+            inventory: [
+              { name: "Health Potion", emoji: "🧪", effect: "heal", value: 20 }
+            ]
+          };
+        }
+      }
+
+      startBattle();
+    });
+
+    function reconstructPlayers(savedPlayers) {
+      return savedPlayers.map(sp => {
+        if (!sp) return null;
+        let race = sp.race || localStorage.getItem('playerRace') || "";
+        return {
+          name: sp.name || race,
+          race: race,
+          level: sp.level || 1,
+          xp: sp.xp || 0,
+          maxHP: sp.maxHP || 100,
+          currentHP: sp.currentHP || 100,
+          defaultImg: sp.defaultImg || PLAYER_ASSETS[race].defaultImg,
+          attackGif: sp.attackGif || PLAYER_ASSETS[race].attackGif,
+          attackSound: sp.attackSound || PLAYER_ASSETS[race].attackSound,
+          hurtSound: sp.hurtSound || PLAYER_ASSETS[race].hurtSound,
+          tempStrength: sp.tempStrength || 0,
+          buffTurnsRemaining: sp.buffTurnsRemaining || 0,
+          gold: sp.gold || 0,
+          wins: sp.wins || 0,
+          inventory: sp.inventory || []
+        };
+      });
+    }
+
+    function loadGameData() {
+      const saved = localStorage.getItem(saveDataKey);
+      return saved ? JSON.parse(saved) : null;
+    }
+    function saveGameData() {
+      let data = {
+        players: players.map(p => {
+          if (!p) return null;
+          return {
+            name: p.name,
+            level: p.level,
+            xp: p.xp,
+            maxHP: p.maxHP,
+            currentHP: p.currentHP,
+            defaultImg: p.defaultImg,
+            attackGif: p.attackGif,
+            attackSound: p.attackSound,
+            hurtSound: p.hurtSound,
+            tempStrength: p.tempStrength,
+            buffTurnsRemaining: p.buffTurnsRemaining,
+            gold: p.gold,
+            wins: p.wins,
+            inventory: p.inventory
+          };
+        })
+      };
+      localStorage.setItem(saveDataKey, JSON.stringify(data));
+    }
+
+    function startBattle() {
+      const p1Box = document.getElementById("p1Container");
+      const p2Box = document.getElementById("p2Container");
+      const e1Box = document.getElementById("enemy1Container");
+      const e2Box = document.getElementById("enemy2Container");
+
+      if (gameMode === "solo") {
+        p2Box.style.display = "none";
+        p1Box.style.width = "30%";
+        turnOrder = ["P1","E1"];
+        enemies = pickRandomEnemies(1);
+        e2Box.style.display = "none";
+        e1Box.style.width = "30%";
+      } else {
+        p2Box.style.display = "flex";
+        p1Box.style.width = "22%";
+        p2Box.style.width = "22%";
+        turnOrder = ["P1","P2","E1","E2"];
+        enemies = pickRandomEnemies(2);
+        e1Box.style.display = "block";
+        e2Box.style.display = "block";
+        e1Box.style.width = "22%";
+        e2Box.style.width = "22%";
+      }
+
+      setupPlayerHUD(0);
+      if (gameMode !== "solo") {
+        setupPlayerHUD(1);
+      }
+
+      for (let i = 0; i < enemies.length; i++) {
+        if (enemies[i].hp > 100) enemies[i].hp = 100;
+        if (enemies[i].maxHP > 100) enemies[i].maxHP = 100;
+        document.getElementById(`enemy${i+1}Name`).textContent = enemies[i].name;
+        document.getElementById(`enemy${i+1}Img`).src = enemies[i].img;
+        document.getElementById(`enemy${i+1}HP`).textContent = enemies[i].hp;
+      }
+      if (enemies.length < 2) {
+        document.getElementById("enemy2Name").textContent = "";
+        document.getElementById("enemy2Img").src = "";
+        document.getElementById("enemy2HP").textContent = 0;
+      }
+
+      currentTurnIndex = 0;
+      showMessage(`Battle Start! ${players[0].name}'s turn!`);
+    }
+
+    function pickRandomEnemies(count = 2) {
+      let chosen = [];
+      let usedIndexes = new Set();
+      while (chosen.length < count) {
+        let idx = Math.floor(Math.random() * ENEMY_POOL.length);
+        if (!usedIndexes.has(idx)) {
+          usedIndexes.add(idx);
+          let e = JSON.parse(JSON.stringify(ENEMY_POOL[idx]));
+          chosen.push(e);
+        }
+      }
+      return chosen;
+    }
+
+    function setupPlayerHUD(index) {
+      if (!players[index]) return;
+      document.getElementById(`player${index+1}Name`).textContent = players[index].name;
+      document.getElementById(`player${index+1}Img`).src = players[index].defaultImg;
+      document.getElementById(`player${index+1}HP`).textContent = players[index].currentHP;
+      document.getElementById(`player${index+1}MaxHP`).textContent = players[index].maxHP;
+      document.getElementById(`player${index+1}Level`).textContent = players[index].level;
+      document.getElementById(`player${index+1}XP`).textContent = players[index].xp;
+      document.getElementById(`player${index+1}Gold`).textContent = players[index].gold || 0;
+    }
+
+    function updatePlayerHUD(pIndex) {
+      if (!players[pIndex]) return;
+      document.getElementById(`player${pIndex+1}HP`).textContent = players[pIndex].currentHP;
+      document.getElementById(`player${pIndex+1}MaxHP`).textContent = players[pIndex].maxHP;
+      document.getElementById(`player${pIndex+1}Level`).textContent = players[pIndex].level;
+      document.getElementById(`player${pIndex+1}XP`).textContent = players[pIndex].xp;
+      document.getElementById(`player${pIndex+1}Gold`).textContent = players[pIndex].gold;
+    }
+
+    function openAttackMenu() {
+      if (isPaused) return;
+      let turnID = turnOrder[currentTurnIndex];
+      if (!isPlayerTurn(turnID)) {
+        showMessage("Not a player's turn right now.");
+        return;
+      }
+      let pIndex = (turnID === "P1") ? 0 : 1;
+      let player = players[pIndex];
+
+      let overlay = document.getElementById("attackOverlay");
+      let list = document.getElementById("attackList");
+      list.innerHTML = "";
+
+      let availableAttacks = ALL_ATTACKS.filter(a => player.level >= a.levelRequired);
+      availableAttacks.forEach(a => {
+        let btn = document.createElement("button");
+        btn.textContent = `${a.name} ${a.emoji} (DMG: ${a.baseDamage})`;
+        btn.onclick = () => {
+          closeAttackMenu();
+          openTargetMenu(a);
+        };
+        list.appendChild(btn);
+      });
+      overlay.style.display = "flex";
+    }
+    function closeAttackMenu() {
+      document.getElementById("attackOverlay").style.display = "none";
+    }
+
+    function openItemMenu() {
+      if (isPaused) return;
+      let turnID = turnOrder[currentTurnIndex];
+      if (!isPlayerTurn(turnID)) {
+        showMessage("Not a player's turn right now.");
+        return;
+      }
+      let pIndex = (turnID === "P1") ? 0 : 1;
+      let player = players[pIndex];
+
+      let overlay = document.getElementById("itemOverlay");
+      let list = document.getElementById("itemList");
+      list.innerHTML = "";
+
+      if (player.inventory.length === 0) {
+        showMessage("No items in inventory!");
+        return;
+      }
+      player.inventory.forEach((it, idx) => {
+        let btn = document.createElement("button");
+        btn.textContent = `${it.name} ${it.emoji}`;
+        btn.onclick = () => {
+          closeItemMenu();
+          useItemFromInventory(pIndex, idx);
+        };
+        list.appendChild(btn);
+      });
+      overlay.style.display = "flex";
+    }
+    function closeItemMenu() {
+      document.getElementById("itemOverlay").style.display = "none";
+    }
+
+    function openTargetMenu(attackData) {
+      if (isPaused) return;
+      let overlay = document.getElementById("targetOverlay");
+      let list = document.getElementById("targetList");
+      list.innerHTML = "";
+
+      for (let i = 0; i < enemies.length; i++) {
+        if (enemies[i].hp > 0) {
+          let btn = document.createElement("button");
+          btn.textContent = `${enemies[i].name} (HP: ${enemies[i].hp})`;
+          btn.onclick = () => {
+            closeTargetMenu();
+            useAttack(attackData, i);
+          };
+          list.appendChild(btn);
+        }
+      }
+      overlay.style.display = "flex";
+    }
+    function closeTargetMenu() {
+      document.getElementById("targetOverlay").style.display = "none";
+    }
+
+    function openShop() {
+      if (isPaused) return;
+      let turnID = turnOrder[currentTurnIndex];
+      if (!isPlayerTurn(turnID)) {
+        showMessage("It's not a player's turn right now.");
+        return;
+      }
+      const shopOverlay = document.getElementById("shopOverlay");
+      const shopList = document.getElementById("shopList");
+      shopList.innerHTML = "";
+
+      SHOP_ITEMS.forEach(shopItem => {
+        const btn = document.createElement("button");
+        btn.textContent = `${shopItem.name} ${shopItem.emoji} (Price: ${shopItem.price} gold)`;
+        btn.onclick = () => {
+          purchaseItem(shopItem);
+        };
+        shopList.appendChild(btn);
+      });
+      shopOverlay.style.display = "flex";
+    }
+    function closeShop() {
+      document.getElementById("shopOverlay").style.display = "none";
+    }
+    function purchaseItem(item) {
+      if (isPaused) return;
+      let turnID = turnOrder[currentTurnIndex];
+      if (!isPlayerTurn(turnID)) {
+        showMessage("It's not a player's turn; can't buy now.").then(() => {
+          closeShop();
+        });
+        return;
+      }
+      let pIndex = (turnID === "P1") ? 0 : 1;
+      let player = players[pIndex];
+
+      if (player.gold >= item.price) {
+        player.gold -= item.price;
+        player.inventory.push({
+          name: item.name,
+          emoji: item.emoji,
+          effect: item.effect,
+          value: item.value
+        });
+        showMessage(`${player.name} purchased ${item.name} for ${item.price} gold!`)
+          .then(() => {
+            updatePlayerHUD(pIndex);
+            saveGameData();
+          });
+      } else {
+        showMessage("Not enough gold to buy that item.");
+      }
+    }
+
+    function useAttack(attack, enemyIndex) {
+      if (isPaused) return;
+      let turnID = turnOrder[currentTurnIndex];
+      let pIndex = (turnID === "P1") ? 0 : 1;
+      let player = players[pIndex];
+
+      // Play attack sound from the attack if available, otherwise use the player's attack sound
+      if (attack.sound) {
+        new Audio(attack.sound).play();
+      } else if (player.attackSound) {
+        new Audio(player.attackSound).play();
+      }
+
+      switchToGif(document.getElementById(`player${pIndex+1}Img`), player.attackGif, player.defaultImg);
+
+      let base = attack.baseDamage + randomInt(1, 3) * player.level + player.tempStrength;
+      let isCrit = (Math.random() < 0.1);
+      let damage = isCrit ? Math.floor(base * 1.5) : base;
+
+      enemies[enemyIndex].hp -= damage;
+      if (enemies[enemyIndex].hp < 0) enemies[enemyIndex].hp = 0;
+      document.getElementById(`enemy${enemyIndex+1}HP`).textContent = enemies[enemyIndex].hp;
+
+      switchToGif(
+        document.getElementById(`enemy${enemyIndex+1}Img`),
+        enemyHurtGif,
+        enemies[enemyIndex].img
+      );
+
+      let critText = isCrit ? " (CRITICAL!)" : "";
+      showMessage(`${player.name} used ${attack.name} on ${enemies[enemyIndex].name} for ${damage} damage${critText}!`)
+        .then(() => {
+          checkEnemyDefeats();
+          proceedNextTurn();
+        });
+    }
+
+    function randomInt(min, max) {
+      return Math.floor(Math.random() * (max - min + 1)) + min;
+    }
+
+    function useItemFromInventory(pIndex, itemIndex) {
+      if (isPaused) return;
+      let player = players[pIndex];
+      if (itemIndex < 0 || itemIndex >= player.inventory.length) {
+        showMessage("Invalid item selection.");
+        return;
+      }
+      let item = player.inventory[itemIndex];
+      player.inventory.splice(itemIndex, 1);
+
+      if (item.effect === "heal") {
+        let oldHP = player.currentHP;
+        player.currentHP = Math.min(player.currentHP + item.value, player.maxHP);
+        let healedFor = player.currentHP - oldHP;
+        showMessage(`${player.name} used ${item.name} and healed for ${healedFor}!`)
+          .then(() => {
+            updatePlayerHUD(pIndex);
+            proceedNextTurn();
+          });
+      } else if (item.effect === "strength") {
+        player.tempStrength += item.value;
+        player.buffTurnsRemaining = 3;
+        showMessage(`${player.name} used ${item.name} and gained +${item.value} Strength for 3 turns!`)
+          .then(() => {
+            updatePlayerHUD(pIndex);
+            proceedNextTurn();
+          });
+      } else {
+        showMessage(`${player.name} used ${item.name}, but nothing special happened.`)
+          .then(() => {
+            updatePlayerHUD(pIndex);
+            proceedNextTurn();
+          });
+      }
+    }
+
+    function proceedNextTurn() {
+      let turnID = turnOrder[currentTurnIndex];
+      if (isPlayerTurn(turnID)) {
+        let pIndex = (turnID === "P1") ? 0 : 1;
+        if (players[pIndex].buffTurnsRemaining > 0) {
+          players[pIndex].buffTurnsRemaining--;
+          if (players[pIndex].buffTurnsRemaining === 0) {
+            players[pIndex].tempStrength = 0;
+          }
+        }
+      }
+
+      currentTurnIndex++;
+      if (currentTurnIndex >= turnOrder.length) {
+        currentTurnIndex = 0;
+      }
+      let nextTurnID = turnOrder[currentTurnIndex];
+
+      if (nextTurnID.startsWith("E")) {
+        enemyAttack(nextTurnID);
+      } else {
+        showMessage(`${players[nextTurnID === "P1" ? 0 : 1].name}'s turn!`);
+      }
+    }
+
+    function enemyAttack(enemyID) {
+      if (isPaused) return;
+      let eIndex = (enemyID === "E1") ? 0 : 1;
+      if (!enemies[eIndex] || enemies[eIndex].hp <= 0) {
+        proceedNextTurn();
+        return;
+      }
+
+      let possibleTargets = [];
+      if (players[0] && players[0].currentHP > 0) possibleTargets.push(0);
+      if ((gameMode !== "solo") && players[1] && players[1].currentHP > 0) possibleTargets.push(1);
+
+      if (possibleTargets.length === 0) {
+        showMessage("All players are dead.").then(() => {
+          showDeathOverlay();
+        });
+        return;
+      }
+
+      let targetIndex = possibleTargets[Math.floor(Math.random() * possibleTargets.length)];
+      let base = randomInt(5, 12);
+      let isCrit = (Math.random() < 0.1);
+      let dmg = isCrit ? Math.floor(base * 1.5) : base;
+
+      switchToGif(
+        document.getElementById(`player${targetIndex+1}Img`),
+        playerHurtGif,
+        players[targetIndex].defaultImg
+      );
+
+      players[targetIndex].currentHP = Math.max(players[targetIndex].currentHP - dmg, 0);
+      updatePlayerHUD(targetIndex);
+
+      let critText = isCrit ? " (CRITICAL!)" : "";
+      showMessage(`${enemies[eIndex].name} attacks ${players[targetIndex].name} for ${dmg} damage${critText}!`)
+        .then(() => {
+          checkPlayerDefeats();
+          proceedNextTurn();
+        });
+    }
+
+    function isPlayerTurn(turnID) {
+      return (turnID === "P1" || turnID === "P2");
+    }
+
+    function checkEnemyDefeats() {
+      let allDead = true;
+      for (let i = 0; i < enemies.length; i++) {
+        if (enemies[i].hp <= 0) {
+          enemies[i].hp = 0;
+          document.getElementById(`enemy${i+1}HP`).textContent = 0;
+        }
+      }
+      for (let e of enemies) {
+        if (e.hp > 0) {
+          allDead = false;
+        }
+      }
+      if (allDead) {
+        for (let p of players) {
+          if (p) {
+            gainXP(p, 30);
+            maybeDropItem(p);
+            let goldDrop = randomInt(10, 30);
+            p.gold += goldDrop;
+            showMessage(`${p.name} looted ${goldDrop} gold from the fallen enemies!`);
+          }
+        }
+        showMessage("All enemies defeated! You win!")
+          .then(() => {
+            saveGameData();
+            closeBattleIframe({ battleEnded: true });
+          });
+      }
+    }
+
+    function checkPlayerDefeats() {
+      let alivePlayers = 0;
+      for (let i = 0; i < players.length; i++) {
+        if (players[i] && players[i].currentHP > 0) {
+          alivePlayers++;
+        }
+      }
+      if (alivePlayers === 0) {
+        showMessage("All players have been defeated!")
+          .then(() => {
+            saveGameData();
+            showDeathOverlay();
+          });
+      }
+    }
+
+    function gainXP(player, amount) {
+      player.xp += amount;
+      while (player.xp >= 100) {
+        player.xp -= 100;
+        if (player.level < 110) {
+          player.level++;
+          player.maxHP += 10;
+          player.currentHP = player.maxHP;
+          showMessage(`${player.name} leveled up to Lvl ${player.level}!`);
+        }
+      }
+      updatePlayerHUD(players.indexOf(player));
+    }
+
+    // Random item drop on death chance.
+    function maybeDropItem(player) {
+      if (Math.random() < 0.3) {
+        let randItem = ALL_ITEMS[Math.floor(Math.random() * ALL_ITEMS.length)];
+        if (!randItem.levelRequired || player.level >= randItem.levelRequired) {
+          player.inventory.push({
+            name: randItem.name,
+            emoji: randItem.emoji,
+            effect: randItem.effect,
+            value: randItem.value
+          });
+          showMessage(`${player.name} found a ${randItem.name} ${randItem.emoji}!`);
+        }
+      }
+    }
+
+    function showMessage(msg) {
+      updateMessage(msg);
+      return new Promise(resolve => {
+        setTimeout(() => {
+          resolve();
+        }, messageDelay);
+      });
+    }
+
+    function updateMessage(msg) {
+      messageBox.innerHTML = `<p>${msg}</p>`;
+    }
+
+    function switchToGif(imgEl, gifURL, revertURL) {
+      if (!gifURL || !revertURL) return;
+      imgEl.src = gifURL;
+      setTimeout(() => {
+        imgEl.src = revertURL;
+      }, 700);
+    }
+
+    function pauseBattle() {
+      isPaused = true;
+      document.getElementById("pauseOverlay").style.display = "flex";
+    }
+    function resumeBattle() {
+      isPaused = false;
+      document.getElementById("pauseOverlay").style.display = "none";
+    }
+    function openSettings() {
+      window.location.href = "../Menus/Settings.html";
+    }
+    function openMap() {
+      window.location.href = "../Components/Map.html";
+    }
+    function quitToMenu() {
+      document.body.classList.add('fade-out');
+      setTimeout(() => {
+        window.location.href = '../Menus/mainmenu.html';
+      }, 1000);
+    }
+
+    function showDeathOverlay() {
+      document.getElementById("deathOverlay").style.display = "flex";
+    }
+    function continueAfterDeath() {
+      closeBattleIframe({ battleEnded: true });
+    }
+    function revivePlayer() {
+      let p = players[0];
+      if (!p) return;
+      if (p.gold >= 50) {
+        p.gold -= 50;
+        p.currentHP = Math.floor(p.maxHP / 2);
+        updatePlayerHUD(0);
+        document.getElementById("deathOverlay").style.display = "none";
+        showMessage("You have revived! Continue the fight.")
+          .then(() => {
+            saveGameData();
+          });
+      } else {
+        showMessage("Not enough gold to revive.");
+      }
+    }
+    // Closes this frame when battle is done.
+    function closeBattleIframe(updatedData) {
+      if (window.parent && window.parent.closeBattleIframe) {
+        window.parent.closeBattleIframe(updatedData);
+      }
+    }
+  </script>
+</body>
+</html>

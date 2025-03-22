@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>World Map of Bebanburg</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: #000;
+      font-family: Arial, sans-serif;
+    }
+    /* Top header bar */
+    #headerBar {
+      display: flex;
+      align-items: center;
+      justify-content: center; /* Center the title since there's no return button */
+      background: #1f1f1f;
+      color: #fff;
+      padding: 10px 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.5);
+      z-index: 1000;
+    }
+    #headerBar h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    /* Map container takes the remaining space below the header */
+    #mapContainer {
+      position: relative;
+      width: 100%;
+      height: calc(100% - 52px); /* subtract header height */
+      overflow: hidden;
+    }
+    /* The transform is applied to this container so buttons stay anchored */
+    #mapContent {
+      position: absolute;
+      top: 0;
+      left: 0;
+      transform-origin: 0 0;
+    }
+    #mapImage {
+      display: block;
+      user-select: none;
+      -webkit-user-drag: none;
+      width: auto;
+      height: auto;
+    }
+    .fast-travel {
+      position: absolute;
+      padding: 5px 10px;
+      background: #fff;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      white-space: nowrap;
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+    .fast-travel:hover {
+      background: #eee;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    /* Modal for area details */
+    #areaModal {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 2000;
+    }
+    #areaModalContent {
+      background: #fff;
+      color: #000;
+      padding: 20px;
+      border-radius: 6px;
+      width: 350px;
+      max-width: 90%;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+    }
+    #areaModalContent h2 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 20px;
+    }
+    #areaModalContent p {
+      margin: 4px 0;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    #areaModalContent button {
+      margin-top: 15px;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #444;
+      color: #fff;
+      transition: background 0.3s;
+    }
+    #areaModalContent button:hover {
+      background: #666;
+    }
+    #closeModalBtn {
+      background: #999;
+      margin-left: 10px;
+    }
+    #closeModalBtn:hover {
+      background: #bbb;
+      color: #000;
+    }
+
+    /* Fade overlay for transitioning out */
+    #fadeOverlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: #000;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.5s;
+      z-index: 9999;
+    }
+  </style>
+</head>
+<body>
+  <div id="headerBar">
+    <h1>World Map of Bebanburg</h1>
+  </div>
+  <div id="mapContainer">
+    <div id="mapContent">
+      <img id="mapImage" src="https://i.ibb.co/gLGV79sL/image-2025-03-22-073404971.png" alt="World Map">
+    </div>
+  </div>
+  <div id="areaModal">
+    <div id="areaModalContent">
+      <h2 id="modalAreaName"></h2>
+      <p id="modalResources"></p>
+      <p id="modalHostility"></p>
+      <p id="modalRace"></p>
+      <p id="modalRuler"></p>
+      <button id="travelBtn">Travel</button>
+      <button id="closeModalBtn">Close</button>
+    </div>
+  </div>
+  <div id="fadeOverlay"></div>
+  <script>
+    (function() {
+      const container = document.getElementById('mapContainer');
+      const mapContent = document.getElementById('mapContent');
+      const img = document.getElementById('mapImage');
+      const areaModal = document.getElementById('areaModal');
+      const modalAreaName = document.getElementById('modalAreaName');
+      const modalResources = document.getElementById('modalResources');
+      const modalHostility = document.getElementById('modalHostility');
+      const modalRace = document.getElementById('modalRace');
+      const modalRuler = document.getElementById('modalRuler');
+      const travelBtn = document.getElementById('travelBtn');
+      const closeModalBtn = document.getElementById('closeModalBtn');
+      const fadeOverlay = document.getElementById('fadeOverlay');
+
+      let naturalWidth = 1, naturalHeight = 1;
+      let scale = 1, translateX = 0, translateY = 0;
+      let isDragging = false, dragStartX = 0, dragStartY = 0;
+      let lastTouchDistance = null, lastTouchMidpoint = null;
+      let minScale = 1, maxScale = 5;
+
+      // Example data with more fields
+      const fastTravelAreas = [
+        {
+          name: 'Laboratory',
+          resources: 'Chemicals, Rare Metals',
+          hostility: 'Hostile',
+          race: 'Humans',
+          ruler: 'Imperial Scientist',
+          targetHtml: 'level_lab.html',
+          buttonX: 400,
+          buttonY: 220
+        },
+        {
+          name: 'Warehouse',
+          resources: 'Ammo, Supplies',
+          hostility: 'Neutral',
+          race: 'Mixed Traders',
+          ruler: 'Local Merchants',
+          targetHtml: 'level_warehouse.html',
+          buttonX: 600,
+          buttonY: 300
+        },
+        {
+          name: 'Boss Arena',
+          resources: 'Ancient Artifact',
+          hostility: 'Extremely Hostile',
+          race: 'Unknown',
+          ruler: 'The Final Boss',
+          targetHtml: 'level_boss.html',
+          buttonX: 800,
+          buttonY: 450
+        }
+      ];
+
+      img.onload = () => {
+        naturalWidth = img.naturalWidth;
+        naturalHeight = img.naturalHeight;
+        mapContent.style.width = naturalWidth + 'px';
+        mapContent.style.height = naturalHeight + 'px';
+        fitToContainer();
+        updateTransform();
+        createFastTravelButtons();
+      };
+
+      function fitToContainer() {
+        const containerRect = container.getBoundingClientRect();
+        const scaleX = containerRect.width / naturalWidth;
+        const scaleY = containerRect.height / naturalHeight;
+        minScale = Math.max(scaleX, scaleY);
+        scale = minScale;
+        translateX = 0;
+        translateY = 0;
+      }
+
+      function clampValues() {
+        const containerRect = container.getBoundingClientRect();
+        if (scale < minScale) scale = minScale;
+        if (scale > maxScale) scale = maxScale;
+
+        const scaledWidth = naturalWidth * scale;
+        const scaledHeight = naturalHeight * scale;
+
+        // Horizontal clamp
+        if (scaledWidth <= containerRect.width) {
+          translateX = (containerRect.width - scaledWidth) / 2;
+        } else {
+          if (translateX > 0) translateX = 0;
+          if (translateX < containerRect.width - scaledWidth) {
+            translateX = containerRect.width - scaledWidth;
+          }
+        }
+        // Vertical clamp
+        if (scaledHeight <= containerRect.height) {
+          translateY = (containerRect.height - scaledHeight) / 2;
+        } else {
+          if (translateY > 0) translateY = 0;
+          if (translateY < containerRect.height - scaledHeight) {
+            translateY = containerRect.height - scaledHeight;
+          }
+        }
+      }
+
+      function updateTransform() {
+        clampValues();
+        mapContent.style.transform = `translate(${translateX}px, ${translateY}px) scale(${scale})`;
+      }
+
+      function createFastTravelButtons() {
+        fastTravelAreas.forEach(area => {
+          const btn = document.createElement('button');
+          btn.innerText = area.name;
+          btn.className = 'fast-travel';
+          btn.style.left = area.buttonX + 'px';
+          btn.style.top = area.buttonY + 'px';
+
+          // Show modal on click
+          btn.addEventListener('click', e => {
+            e.stopPropagation();
+            modalAreaName.textContent = area.name;
+            modalResources.textContent = 'Resources: ' + area.resources;
+            modalHostility.textContent = 'Hostility: ' + area.hostility;
+            modalRace.textContent = 'Race: ' + area.race;
+            modalRuler.textContent = 'Ruled by: ' + area.ruler;
+            travelBtn.onclick = () => fadeOutAndNavigate(area.targetHtml);
+            areaModal.style.display = 'flex';
+          });
+
+          // Stop map drag on button
+          btn.addEventListener('mousedown', e => e.stopPropagation());
+          btn.addEventListener('touchstart', e => e.stopPropagation());
+
+          mapContent.appendChild(btn);
+        });
+      }
+
+      // Modal close
+      closeModalBtn.addEventListener('click', () => {
+        areaModal.style.display = 'none';
+      });
+
+      // Fade out and navigate
+      function fadeOutAndNavigate(url) {
+        areaModal.style.display = 'none';
+        fadeOverlay.style.opacity = '1';
+        setTimeout(() => {
+          window.location.href = url;
+        }, 500);
+      }
+
+      // Drag (mouse)
+      container.addEventListener('mousedown', e => {
+        isDragging = true;
+        dragStartX = e.clientX - translateX;
+        dragStartY = e.clientY - translateY;
+      });
+      container.addEventListener('mousemove', e => {
+        if (!isDragging) return;
+        translateX = e.clientX - dragStartX;
+        translateY = e.clientY - dragStartY;
+        updateTransform();
+      });
+      container.addEventListener('mouseup', () => isDragging = false);
+      container.addEventListener('mouseleave', () => isDragging = false);
+
+      // Drag/zoom (touch)
+      container.addEventListener('touchstart', e => {
+        if (e.touches.length === 1) {
+          isDragging = true;
+          dragStartX = e.touches[0].clientX - translateX;
+          dragStartY = e.touches[0].clientY - translateY;
+        } else if (e.touches.length === 2) {
+          isDragging = false;
+          lastTouchDistance = getTouchDistance(e.touches[0], e.touches[1]);
+          lastTouchMidpoint = getTouchMidpoint(e.touches[0], e.touches[1]);
+        }
+      });
+      container.addEventListener('touchmove', e => {
+        e.preventDefault();
+        if (e.touches.length === 1 && isDragging) {
+          translateX = e.touches[0].clientX - dragStartX;
+          translateY = e.touches[0].clientY - dragStartY;
+          updateTransform();
+        } else if (e.touches.length === 2) {
+          const newDistance = getTouchDistance(e.touches[0], e.touches[1]);
+          const newMidpoint = getTouchMidpoint(e.touches[0], e.touches[1]);
+          if (lastTouchDistance) {
+            const distanceDelta = newDistance / lastTouchDistance;
+            scale *= distanceDelta;
+            translateX = newMidpoint.x - (lastTouchMidpoint.x - translateX) * distanceDelta;
+            translateY = newMidpoint.y - (lastTouchMidpoint.y - translateY) * distanceDelta;
+            lastTouchMidpoint = newMidpoint;
+            lastTouchDistance = newDistance;
+            updateTransform();
+          }
+        }
+      }, { passive: false });
+      container.addEventListener('touchend', e => {
+        if (e.touches.length < 2) {
+          lastTouchDistance = null;
+          lastTouchMidpoint = null;
+        }
+        if (e.touches.length === 0) {
+          isDragging = false;
+        }
+      });
+
+      function getTouchDistance(t1, t2) {
+        const dx = t2.clientX - t1.clientX;
+        const dy = t2.clientY - t1.clientY;
+        return Math.hypot(dx, dy);
+      }
+      function getTouchMidpoint(t1, t2) {
+        return {
+          x: (t1.clientX + t2.clientX) / 2,
+          y: (t1.clientY + t2.clientY) / 2
+        };
+      }
+
+      // Zoom with mouse wheel
+      container.addEventListener('wheel', e => {
+        e.preventDefault();
+        const rect = mapContent.getBoundingClientRect();
+        const offsetX = e.clientX - rect.left;
+        const offsetY = e.clientY - rect.top;
+        const zoomFactor = 0.1;
+        let delta = (e.deltaY < 0) ? (1 + zoomFactor) : (1 - zoomFactor);
+
+        scale *= delta;
+        translateX = e.clientX - offsetX * delta;
+        translateY = e.clientY - offsetY * delta;
+        updateTransform();
+      });
+
+      window.addEventListener('resize', () => {
+        fitToContainer();
+        updateTransform();
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Chronicles of Bebanburg - RPG Exploration</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    :root {
+      --pixel-size: 2px;
+      --grid-cell: calc(var(--pixel-size) * 16);
+      --bg: #9fa7e4;
+    }
+    @media (min-width: 700px) {
+      :root { --pixel-size: 3px; }
+    }
+    @media (min-width: 1000px) {
+      :root { --pixel-size: 4px; }
+    }
+    html, body {
+      height: 100%;
+      margin: 0; 
+      padding: 0;
+    }
+    body {
+      background: var(--bg);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+      position: relative;
+    }
+    .pixel-art {
+      image-rendering: pixelated;
+    }
+    .frame {
+      width: calc(var(--pixel-size) * 160);
+      height: calc(var(--pixel-size) * 144);
+      outline: var(--pixel-size) solid #fff;
+      z-index: 1;
+      position: relative;
+    }
+    .camera {
+      width: calc(var(--pixel-size) * 160);
+      height: calc(var(--pixel-size) * 144);
+      overflow: hidden;
+      background: #61ddf7;
+      position: relative;
+    }
+    .map {
+      image-rendering: pixelated;
+      background-image: url("https://assets.codepen.io/21542/CameraDemoMap.png");
+      background-size: 100%;
+      width: calc(13 * var(--grid-cell));
+      height: calc(10 * var(--grid-cell));
+      position: relative;
+    }
+    .entryDoor {
+      position: absolute;
+      left: 10%;
+      bottom: 30%;
+      width: 32px;
+      height: 32px;
+      background: rgba(255, 255, 0, 0.3);
+      border: 2px solid #ffff00;
+      z-index: 0;
+    }
+    .TriggerZone {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: rgba(0,255,0,0.3);
+      z-index: 0;
+    }
+    .TriggerExit {
+      position: absolute;
+      width: 50px;
+      height: 50px;
+      background: rgba(255,0,0,0.3);
+      z-index: 0;
+    }
+    .character {
+      width: calc(var(--grid-cell) * 2);
+      height: calc(var(--grid-cell) * 2);
+      position: absolute;
+      overflow: hidden;
+      z-index: 1;
+    }
+    .shadow {
+      width: calc(var(--grid-cell) * 2);
+      height: calc(var(--grid-cell) * 2);
+      position: absolute;
+      left: 0; top: 0;
+      background: url("https://assets.codepen.io/21542/DemoRpgCharacterShadow.png") no-repeat;
+      background-size: 100%;
+    }
+    .character_spritesheet {
+      position: absolute;
+      background: url("https://assets.codepen.io/21542/DemoRpgCharacter.png") no-repeat;
+      background-size: 100%;
+      width: calc(var(--grid-cell) * 8);
+      height: calc(var(--grid-cell) * 8);
+    }
+    .character[facing="right"] .character_spritesheet {
+      background-position-y: calc(var(--pixel-size) * -32);
+    }
+    .character[facing="up"] .character_spritesheet {
+      background-position-y: calc(var(--pixel-size) * -64);
+    }
+    .character[facing="left"] .character_spritesheet {
+      background-position-y: calc(var(--pixel-size) * -96);
+    }
+    .character[walking="true"] .character_spritesheet {
+      animation: walkAnimation 0.6s steps(4) infinite;
+    }
+    @keyframes walkAnimation {
+      from { transform: translate3d(0, 0, 0); }
+      to   { transform: translate3d(-100%, 0, 0); }
+    }
+    /* Dpad styling as per your reference */
+    .dpad {
+      user-select: none;
+      position: absolute;
+      right: calc(var(--pixel-size) * 2);
+      bottom: calc(var(--pixel-size) * 2);
+      width: 100px;
+      height: 100px;
+      z-index: 10;
+    }
+    .DemoDirectionUI {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+    .dpad-button {
+      appearance: none;
+      outline: 0;
+      border: 0;
+      background: transparent;
+      padding: 0;
+      cursor: pointer;
+      margin: 0 2px;
+    }
+    .dpad-button svg {
+      display: block;
+      height: calc(var(--pixel-size) * 13);
+    }
+    .dpad-button.pressed .Arrow_arrow-inset { stroke: #07c2cc; }
+    .dpad-button.pressed .Arrow_arrow-body { stroke: #17dfea; }
+    .dpad-up {
+      position: absolute;
+      left: calc(var(--pixel-size) * 12);
+      top: 0;
+    }
+    .dpad-down {
+      position: absolute;
+      left: calc(var(--pixel-size) * 12);
+      bottom: var(--pixel-size);
+    }
+    .dpad-left {
+      position: absolute;
+      top: calc(var(--pixel-size) * 12);
+      left: 0;
+    }
+    .dpad-right {
+      position: absolute;
+      top: calc(var(--pixel-size) * 12);
+      right: 0;
+    }
+    .corner_topleft,
+    .corner_topright,
+    .corner_bottomleft,
+    .corner_bottomright {
+      position: absolute;
+      width: var(--pixel-size);
+      height: var(--pixel-size);
+      background: var(--bg);
+      z-index: 2;
+    }
+    .corner_topleft {
+      top: calc(var(--pixel-size) * -1);
+      left: calc(var(--pixel-size) * -1);
+    }
+    .corner_topright {
+      top: calc(var(--pixel-size) * -1);
+      right: calc(var(--pixel-size) * -1);
+    }
+    .corner_bottomleft {
+      bottom: calc(var(--pixel-size) * -1);
+      left: calc(var(--pixel-size) * -1);
+    }
+    .corner_bottomright {
+      bottom: calc(var(--pixel-size) * -1);
+      right: calc(var(--pixel-size) * -1);
+    }
+    .headline {
+      position: absolute;
+      top: calc(var(--pixel-size) * 2);
+      right: calc(var(--pixel-size) * 2);
+      width: calc(var(--pixel-size) * 75);
+    }
+    /* Battle iframe overlay and buttons */
+    .battle-iframe-overlay {
+      display: none;
+      position: absolute;
+      top: 0; 
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 9999;
+      background: rgba(0,0,0,0.8);
+      justify-content: center;
+      align-items: center;
+    }
+    .battle-iframe-overlay iframe {
+      width: 90%;
+      height: 90%;
+      border: 2px solid #fff;
+      border-radius: 8px;
+      background: #000;
+    }
+    #runAwayBtn {
+      position: absolute;
+      bottom: 10px;
+      right: 10px;
+      padding: 10px 20px;
+      background: #aa3333;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      z-index: 11000;
+    }
+    #endBattleBtn {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      padding: 10px 20px;
+      background: #333;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      z-index: 11000;
+    }
+    /* Pause overlay */
+    .pause-overlay {
+      display: none;
+      position: absolute;
+      top: 0; 
+      left: 0;
+      width: 100%; 
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 2000;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+    .pause-menu {
+      background: #333;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .pause-menu button {
+      background: #444;
+      color: #fff;
+      padding: 10px 20px;
+      margin: 8px;
+      border: none;
+      cursor: pointer;
+    }
+    .pause-menu button:hover {
+      background: #666;
+    }
+    .fade-out {
+      animation: fadeOut 1s forwards;
+    }
+    @keyframes fadeOut {
+      to { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <div class="corner_topleft"></div>
+    <div class="corner_topright"></div>
+    <div class="corner_bottomleft"></div>
+    <div class="corner_bottomright"></div>
+    <div class="camera">
+      <div class="map pixel-art">
+        <div class="entryDoor"></div>
+        <div class="TriggerZone"
+             style="left: 45%; bottom: 30%;"
+             data-trigger="battle"
+             data-offsetx="0"
+             data-offsety="0"
+             data-offsetwidth="0"
+             data-offsetheight="0">
+        </div>
+        <div class="TriggerExit"
+             style="left: 10%; bottom: 60%;"
+             data-trigger="exit-level"
+             data-offsetx="0"
+             data-offsety="0"
+             data-offsetwidth="0"
+             data-offsetheight="0">
+        </div>
+        <div class="character" facing="down" walking="true">
+          <div class="shadow pixel-art"></div>
+          <div class="character_spritesheet pixel-art"></div>
+        </div>
+      </div>
+      <!-- Dpad using your provided SVGs -->
+      <div class="dpad">
+        <div class="DemoDirectionUI flex-center">
+          <button class="dpad-button dpad-left" 
+                  onmousedown="handleDpadPress('left', true)" 
+                  ontouchstart="handleDpadPress('left', true)" 
+                  onmouseup="stopDpadPress()" 
+                  ontouchend="stopDpadPress()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -0.5 13 13" shape-rendering="crispEdges">
+              <path class="Arrow_outline-top" stroke="#5f5f5f" d="M1 0h11M0 1h1M12 1h1M0 2h1M12 2h1M0 3h1M12 3h1M0 4h1M12 4h1M0 5h1M12 5h1M0 6h1M12 6h1M0 7h1M12 7h1M0 8h1M12 8h1"/>
+              <path class="Arrow_surface" stroke="#f5f5f5" d="M1 1h11M1 2h11M1 3h5M7 3h5M1 4h4M7 4h5M1 5h3M7 5h5M1 6h4M7 6h5M1 7h5M7 7h5M1 8h11"/>
+              <path class="Arrow_arrow-inset" stroke="#434343" d="M6 3h1M5 4h1M4 5h1"/>
+              <path class="Arrow_arrow-body" stroke="#5f5f5f" d="M6 4h1M5 5h2M5 6h2M6 7h1"/>
+              <path class="Arrow_outline-bottom" stroke="#434343" d="M0 9h1M12 9h1M0 10h1M12 10h1M0 11h1M12 11h1M1 12h11"/>
+              <path class="Arrow_edge" stroke="#ffffff" d="M1 9h11"/>
+              <path class="Arrow_front" stroke="#cccccc" d="M1 10h11M1 11h11"/>
+            </svg>
+          </button>
+          <button class="dpad-button dpad-up" 
+                  onmousedown="handleDpadPress('up', true)" 
+                  ontouchstart="handleDpadPress('up', true)" 
+                  onmouseup="stopDpadPress()" 
+                  ontouchend="stopDpadPress()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -0.5 13 13" shape-rendering="crispEdges">
+              <path class="Arrow_outline-top" stroke="#5f5f5f" d="M1 0h11M0 1h1M12 1h1M0 2h1M12 2h1M0 3h1M12 3h1M0 4h1M12 4h1M0 5h1M12 5h1M0 6h1M12 6h1M0 7h1M12 7h1M0 8h1M12 8h1"/>
+              <path class="Arrow_surface" stroke="#f5f5f5" d="M1 1h11M1 2h11M1 3h11M1 4h5M7 4h5M1 5h4M8 5h4M1 6h3M9 6h3M1 7h11M1 8h11"/>
+              <path class="Arrow_arrow-inset" stroke="#434343" d="M6 4h1M5 5h1M7 5h1"/>
+              <path class="Arrow_arrow-body" stroke="#5f5f5f" d="M6 5h1M4 6h5"/>
+              <path class="Arrow_outline-bottom" stroke="#434343" d="M0 9h1M12 9h1M0 10h1M12 10h1M0 11h1M12 11h1M1 12h11"/>
+              <path class="Arrow_edge" stroke="#ffffff" d="M1 9h11"/>
+              <path class="Arrow_front" stroke="#cccccc" d="M1 10h11M1 11h11"/>
+            </svg>
+          </button>
+          <button class="dpad-button dpad-down" 
+                  onmousedown="handleDpadPress('down', true)" 
+                  ontouchstart="handleDpadPress('down', true)" 
+                  onmouseup="stopDpadPress()" 
+                  ontouchend="stopDpadPress()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -0.5 13 13" shape-rendering="crispEdges">
+              <path class="Arrow_outline-top" stroke="#5f5f5f" d="M1 0h11M0 1h1M12 1h1M0 2h1M12 2h1M0 3h1M12 3h1M0 4h1M12 4h1M0 5h1M12 5h1M0 6h1M12 6h1M0 7h1M12 7h1M0 8h1M12 8h1"/>
+              <path class="Arrow_surface" stroke="#f5f5f5" d="M1 1h11M1 2h11M1 3h11M1 4h3M9 4h3M1 5h4M8 5h4M1 6h5M7 6h5M1 7h11M1 8h11"/>
+              <path class="Arrow_arrow-inset" stroke="#434343" d="M4 4h5"/>
+              <path class="Arrow_arrow-body" stroke="#5f5f5f" d="M5 5h3M6 6h1"/>
+              <path class="Arrow_outline-bottom" stroke="#434343" d="M0 9h1M12 9h1M0 10h1M12 10h1M0 11h1M12 11h1M1 12h11"/>
+              <path class="Arrow_edge" stroke="#ffffff" d="M1 9h11"/>
+              <path class="Arrow_front" stroke="#cccccc" d="M1 10h11M1 11h11"/>
+            </svg>
+          </button>
+          <button class="dpad-button dpad-right" 
+                  onmousedown="handleDpadPress('right', true)" 
+                  ontouchstart="handleDpadPress('right', true)" 
+                  onmouseup="stopDpadPress()" 
+                  ontouchend="stopDpadPress()">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 -0.5 13 13" shape-rendering="crispEdges">
+              <path class="Arrow_outline-top" stroke="#5f5f5f" d="M1 0h11M0 1h1M12 1h1M0 2h1M12 2h1M0 3h1M12 3h1M0 4h1M12 4h1M0 5h1M12 5h1M0 6h1M12 6h1M0 7h1M12 7h1M0 8h1M12 8h1"/>
+              <path class="Arrow_surface" stroke="#f5f5f5" d="M1 1h11M1 2h11M1 3h5M7 3h5M1 4h5M8 4h4M1 5h5M9 5h3M1 6h5M8 6h4M1 7h5M7 7h5M1 8h11"/>
+              <path class="Arrow_arrow-inset" stroke="#434343" d="M6 3h1M7 4h1M8 5h1"/>
+              <path class="Arrow_arrow-body" stroke="#5f5f5f" d="M6 4h1M6 5h2M6 6h2M6 7h1"/>
+              <path class="Arrow_outline-bottom" stroke="#434343" d="M0 9h1M12 9h1M0 10h1M12 10h1M0 11h1M12 11h1M1 12h11"/>
+              <path class="Arrow_edge" stroke="#ffffff" d="M1 9h11"/>
+              <path class="Arrow_front" stroke="#cccccc" d="M1 10h11M1 11h11"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <!-- TurnBasedBattle overlay with battle buttons -->
+      <div class="battle-iframe-overlay" id="battleIframeOverlay">
+        <iframe id="battleIframe" src="" frameborder="0"></iframe>
+        <button id="runAwayBtn" onclick="runAwayBattle()">Run Away</button>
+        <button id="endBattleBtn" onclick="endBattle()">End Battle</button>
+      </div>
+      <!-- Pause overlay -->
+      <div class="pause-overlay" id="pauseOverlay">
+        <div class="pause-menu">
+          <h2>Game Paused</h2>
+          <button onclick="resumeGame()">Resume</button>
+          <button onclick="openSettings()">Settings</button>
+          <button onclick="openMap()">Map</button>
+          <button onclick="quitToMenu()">Quit to Main Menu</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    let character = document.querySelector(".character");
+    let map = document.querySelector(".map");
+
+    let x = 90, y = 34;
+    let held_directions = [];
+    let speed = 1;
+
+    let hasTriggeredBattle = false;
+    let hasTriggeredExit   = false;
+    // Flag to permanently disable triggers after an end battle action.
+    let triggersDisabled = false;
+    let isPaused = false;
+
+    const directions = { up: "up", down: "down", left: "left", right: "right" };
+    const keys = { 38: directions.up, 37: directions.left, 39: directions.right, 40: directions.down, 27: 'pause' };
+
+    let topdownGameMode = localStorage.getItem('topdownGameMode') || 'solo';
+
+    function placeCharacter() {
+      if (isPaused) return;
+      let pixelSize = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--pixel-size'));
+      const held_direction = held_directions[0];
+      if (held_direction) {
+        if (held_direction === directions.right) x += speed;
+        if (held_direction === directions.left)  x -= speed;
+        if (held_direction === directions.down)  y += speed;
+        if (held_direction === directions.up)    y -= speed;
+        character.setAttribute("facing", held_direction);
+      }
+      character.setAttribute("walking", held_direction ? "true" : "false");
+
+      let leftLimit = -8, rightLimit = (16 * 11) + 8;
+      let topLimit  = -8 + 32, bottomLimit = (16 * 7);
+      if (x < leftLimit)   x = leftLimit;
+      if (x > rightLimit)  x = rightLimit;
+      if (y < topLimit)    y = topLimit;
+      if (y > bottomLimit) y = bottomLimit;
+
+      let camera_left = pixelSize * 66;
+      let camera_top  = pixelSize * 42;
+      map.style.transform = `translate3d(${ -x * pixelSize + camera_left }px, ${ -y * pixelSize + camera_top }px, 0)`;
+      character.style.transform = `translate3d(${ x * pixelSize }px, ${ y * pixelSize }px, 0)`;
+      checkTriggers(pixelSize);
+    }
+
+    function checkTriggers(pixelSize) {
+      if (isPaused || triggersDisabled) return;
+      let charLeft   = x * pixelSize;
+      let charTop    = y * pixelSize;
+      let charWidth  = parseInt(getComputedStyle(character).width);
+      let charHeight = parseInt(getComputedStyle(character).height);
+      let charRight  = charLeft + charWidth;
+      let charBottom = charTop + charHeight;
+      document.querySelectorAll(".TriggerZone, .TriggerExit").forEach(trigger => {
+        let zoneLeft   = trigger.offsetLeft;
+        let zoneTop    = trigger.offsetTop;
+        let zoneWidth  = trigger.offsetWidth;
+        let zoneHeight = trigger.offsetHeight;
+        let offX = parseFloat(trigger.dataset.offsetx) || 0;
+        let offY = parseFloat(trigger.dataset.offsety) || 0;
+        let offW = parseFloat(trigger.dataset.offsetwidth) || 0;
+        let offH = parseFloat(trigger.dataset.offsetheight) || 0;
+        zoneLeft   += offX;
+        zoneTop    += offY;
+        zoneWidth  += offW;
+        zoneHeight += offH;
+        let zoneRight  = zoneLeft + zoneWidth;
+        let zoneBottom = zoneTop + zoneHeight;
+        if (charLeft < zoneRight && charRight > zoneLeft &&
+            charTop < zoneBottom && charBottom > zoneTop) {
+          let triggerType = trigger.dataset.trigger;
+          if (trigger.classList.contains("TriggerZone") && triggerType === "battle" && !hasTriggeredBattle) {
+            hasTriggeredBattle = true;
+            openBattleIframe();
+          }
+          if (trigger.classList.contains("TriggerExit") && triggerType === "exit-level" && !hasTriggeredExit) {
+            hasTriggeredExit = true;
+            fadeOutToLevel("level3.html");
+          }
+        }
+      });
+    }
+
+    function openBattleIframe() {
+      const overlay = document.getElementById("battleIframeOverlay");
+      const iframe  = document.getElementById("battleIframe");
+      overlay.style.display = "flex";
+      iframe.src = "../../Modules/TurnBasedBattle.html";
+    }
+
+    function runAwayBattle() {
+      // Play run-away sound (replace URL with your sound)
+      new Audio('https://example.com/sounds/runaway.mp3').play();
+      // Emulate movement away from trigger so it can be reactivated later
+      x += 50;
+      placeCharacter();
+      let overlay = document.getElementById("battleIframeOverlay");
+      overlay.classList.add("fade-out");
+      setTimeout(() => {
+        overlay.style.display = "none";
+        overlay.classList.remove("fade-out");
+        hasTriggeredBattle = false;
+      }, 1000);
+    }
+
+    function endBattle() {
+      // Play end-battle sound (replace URL with your sound)
+      new Audio('https://example.com/sounds/endbattle.mp3').play();
+      // Permanently disable this battle trigger
+      triggersDisabled = true;
+      // Change TriggerZone appearance to indicate it's safe (non-active)
+      document.querySelectorAll(".TriggerZone").forEach(trigger => {
+        trigger.style.backgroundColor = "#333";
+        // Optionally, remove its event listeners if added dynamically
+      });
+      // Retrieve battle update from localStorage
+      let saved = localStorage.getItem("chroniclesSaveData");
+      let resultText = "";
+      if (saved) {
+        let data = JSON.parse(saved);
+        if (data && data.players && data.players[0]) {
+          let p = data.players[0];
+          resultText = "Battle concluded!\n" +
+                       "Player: " + p.name + "\n" +
+                       "HP: " + p.currentHP + "/" + p.maxHP + "\n" +
+                       "Level: " + p.level + " | XP: " + p.xp + "\n" +
+                       "Gold: " + p.gold;
+        }
+      }
+      // Create result overlay to display battle update
+      let resultOverlay = document.createElement("div");
+      resultOverlay.style.position = "fixed";
+      resultOverlay.style.top = "0";
+      resultOverlay.style.left = "0";
+      resultOverlay.style.width = "100vw";
+      resultOverlay.style.height = "100vh";
+      resultOverlay.style.backgroundColor = "rgba(0,0,0,0.8)";
+      resultOverlay.style.display = "flex";
+      resultOverlay.style.justifyContent = "center";
+      resultOverlay.style.alignItems = "center";
+      resultOverlay.style.color = "#fff";
+      resultOverlay.style.fontSize = "20px";
+      resultOverlay.style.textAlign = "center";
+      resultOverlay.style.zIndex = "11000";
+      resultOverlay.innerText = resultText;
+      document.body.appendChild(resultOverlay);
+      let overlay = document.getElementById("battleIframeOverlay");
+      overlay.classList.add("fade-out");
+      setTimeout(() => {
+        overlay.style.display = "none";
+        overlay.classList.remove("fade-out");
+        hasTriggeredBattle = false;
+        setTimeout(() => {
+          resultOverlay.classList.add("fade-out");
+          setTimeout(() => {
+            document.body.removeChild(resultOverlay);
+            // Triggers remain permanently disabled for this area.
+          }, 1000);
+        }, 3000);
+      }, 1000);
+    }
+
+    function fadeOutToLevel(nextUrl) {
+      document.body.classList.add('fade-out');
+      setTimeout(() => {
+        window.location.href = nextUrl;
+      }, 1000);
+    }
+
+    function openPause() {
+      isPaused = true;
+      document.getElementById("pauseOverlay").style.display = "flex";
+    }
+    function resumeGame() {
+      document.getElementById("pauseOverlay").style.display = "none";
+      isPaused = false;
+    }
+    function openSettings() {
+      window.location.href = "Settings.html";
+    }
+    function openMap() {
+      window.location.href = "Map.html";
+    }
+    function quitToMenu() {
+      fadeOutToLevel("mainmenu.html");
+    }
+
+    function step() {
+      placeCharacter();
+      window.requestAnimationFrame(step);
+    }
+    step();
+
+    // Keyboard dpad – stop movement on keyup
+    document.addEventListener("keydown", e => {
+      let dir = keys[e.which];
+      if (dir === 'pause') {
+        if (!isPaused) openPause();
+        else resumeGame();
+        return;
+      }
+      if (dir && held_directions.indexOf(dir) === -1) {
+        held_directions.push(dir);
+      }
+    });
+    document.addEventListener("keyup", e => {
+      let dir = keys[e.which];
+      if (dir && dir !== 'pause') {
+        held_directions = held_directions.filter(d => d !== dir);
+      }
+    });
+
+    // Dpad events for mouse and touch – ensure movement stops on release
+    function removePressedAll() {
+      document.querySelectorAll(".dpad-button").forEach(d => d.classList.remove("pressed"));
+    }
+    function stopDpadPress() {
+      held_directions = [];
+      removePressedAll();
+    }
+    // Attach event listeners to dpad buttons
+    document.querySelectorAll(".dpad-button").forEach(btn => {
+      btn.addEventListener("mousedown", () => {
+        let direction = btn.classList[1].split("-")[1];
+        held_directions = [direction];
+        removePressedAll();
+        btn.classList.add("pressed");
+      });
+      btn.addEventListener("touchstart", () => {
+        let direction = btn.classList[1].split("-")[1];
+        held_directions = [direction];
+        removePressedAll();
+        btn.classList.add("pressed");
+      });
+      btn.addEventListener("mouseup", stopDpadPress);
+      btn.addEventListener("touchend", stopDpadPress);
+      btn.addEventListener("touchcancel", stopDpadPress);
+    });
+  </script>
+</body>
+</html>

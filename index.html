@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Chronicles of Bebanburg - Intro</title>
+  <meta name="description" content="Chronicles of Bebanburg - An immersive pixel RPG adventure." />
+  <meta name="theme-color" content="#000000" />
+  <meta property="og:title" content="Chronicles of Bebanburg" />
+  <meta property="og:description" content="Embark on your journey. Discover the legends." />
+  <meta property="og:type" content="website" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background: black;
+      font-family: 'Segoe UI', sans-serif;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      background: black;
+      z-index: 10;
+      animation: fadeOutOverlay 2.5s ease forwards;
+    }
+
+    @keyframes fadeOutOverlay {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    .logo-container {
+      text-align: center;
+      opacity: 0;
+      animation: fadeInLogo 2s ease-in forwards;
+      animation-delay: 2.5s;
+      z-index: 5;
+    }
+
+    @keyframes fadeInLogo {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+
+    .logo-title {
+      font-size: 3rem;
+      font-weight: bold;
+    }
+
+    .logo-subtext {
+      font-size: 1.2rem;
+      margin-top: 0.5rem;
+      opacity: 0.7;
+    }
+
+    .fade-out {
+      animation: fadeOutLogo 2s ease-in forwards;
+    }
+
+    @keyframes fadeOutLogo {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+
+    .loader-screen {
+      display: none;
+      position: absolute;
+      top: 0; left: 0;
+      height: 100%;
+      width: 100%;
+      background: black;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      z-index: 20;
+      opacity: 0;
+    }
+
+    .loader-screen.fade-in {
+      animation: fadeIn 2s forwards;
+    }
+    .loader-screen.fade-out {
+      animation: fadeOut 2s forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+
+    .loader {
+      position: relative;
+      width: 60px;
+      height: 60px;
+      margin-bottom: 20px;
+    }
+
+    .dot {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: white;
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+    .dot:nth-child(1) { animation: orbit 1.5s linear infinite; transform-origin: 30px 0; }
+    .dot:nth-child(2) { animation: orbit 2s linear infinite; transform-origin: 30px 0; }
+    .dot:nth-child(3) { animation: orbit 2.5s linear infinite; transform-origin: 30px 0; }
+
+    @keyframes orbit {
+      from { transform: rotate(0deg) translateX(30px); }
+      to   { transform: rotate(360deg) translateX(30px); }
+    }
+
+    .loading-text {
+      font-size: 1rem;
+      text-align: center;
+      opacity: 0.8;
+    }
+
+    @media (max-width: 600px) {
+      .logo-title { font-size: 2rem; }
+      .logo-subtext { font-size: 1rem; }
+      .loading-text { font-size: 0.9rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="overlay"></div>
+
+  <div class="logo-container" id="title-screen">
+    <div class="logo-title">Chronicles of Bebanburg</div>
+    <div class="logo-subtext">Prepare for your journey</div>
+  </div>
+
+  <div class="loader-screen" id="loader">
+    <div class="loader">
+      <div class="dot"></div>
+      <div class="dot"></div>
+      <div class="dot"></div>
+    </div>
+    <div class="loading-text" id="loading-status">Loading assets...</div>
+  </div>
+
+  <audio id="intro-audio" src="intro.mp3" preload="auto"></audio>
+
+  <script>
+    const titleScreen = document.getElementById('title-screen');
+    const loader = document.getElementById('loader');
+    const audio = document.getElementById('intro-audio');
+    const status = document.getElementById('loading-status');
+
+    setTimeout(() => {
+      audio.play();
+    }, 2500);
+
+    setTimeout(() => {
+      titleScreen.classList.add('fade-out');
+    }, 5500);
+
+    setTimeout(() => {
+      titleScreen.style.display = 'none';
+      loader.style.display = 'flex';
+      loader.classList.add('fade-in');
+    }, 7500);
+
+    setTimeout(() => {
+      status.textContent = 'Connecting to server...';
+    }, 9500);
+
+    setTimeout(() => {
+      status.textContent = 'Connection established.';
+    }, 11500);
+
+    setTimeout(() => {
+      loader.classList.remove('fade-in');
+      loader.classList.add('fade-out');
+    }, 13500);
+
+    setTimeout(() => {
+      // Fade to main menu
+      window.location.href = 'Menus/mainmenu.html';
+    }, 16000);
+  </script>
+</body>
+</html>
