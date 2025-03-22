@@ -2,7 +2,7 @@
 ### Stage: Early-Alpha | BuildNum#: 0.18.1 | Ver: 0.1.3.0
 > A Heavily Modified Port of the **RiskRP** Discord Bot (Originally Python) to **Pure HTML** & JavaScript
 
-![Chronicles of Bebanburg Banner](https://i.ibb.co/KnkmF0Q/image-2025-03-20-073410315.png)
+![Chronicles of Bebanburg Banner](https://i.ibb.co/k2ZFdsGg/image-2025-03-22-141751644.png)
 
 **Author / Developer:** [gamedev44 (Asterisk)](https://github.com/gamedev44)  
 **Support Our Work:** [Patreon - PGD Indue Unlimited](https://www.patreon.com/c/iu_pgd/membership)  
